@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reaction Test | Bownce</title>
+  <style>
+    :root { --bg:#0b1017; --panel:#121a24; --text:#f4f7fb; --muted:#a8b3c2; --red:#f0444f; --green:#20d477; --blue:#8ab4ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:radial-gradient(circle at 50% 0%, #182536 0, var(--bg) 58%); color:var(--text); font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; display:flex; align-items:center; justify-content:center; padding:20px; }
+    .shell { width:min(100%,560px); }
+    .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+    .brand { letter-spacing:.18em; font-weight:800; font-size:13px; color:#eaf1fa; }
+    .tag { color:var(--muted); font-size:12px; border:1px solid #283545; border-radius:999px; padding:7px 11px; }
+    .card { background:rgba(18,26,36,.92); border:1px solid #253243; border-radius:24px; overflow:hidden; box-shadow:0 25px 70px rgba(0,0,0,.35); }
+    .content { padding:clamp(22px,5vw,34px); }
+    h1 { margin:0 0 12px; font-size:clamp(30px,7vw,42px); line-height:1.05; letter-spacing:-.04em; }
+    p { color:var(--muted); line-height:1.6; margin:0 0 18px; }
+    .eyebrow { color:var(--blue); font-size:11px; letter-spacing:.17em; text-transform:uppercase; font-weight:800; margin-bottom:12px; }
+    .button { border:0; cursor:pointer; width:100%; border-radius:14px; padding:16px 18px; font-size:15px; font-weight:800; letter-spacing:.04em; color:#08120d; background:var(--green); transition:transform .15s,filter .15s; }
+    .button:hover { filter:brightness(1.08); transform:translateY(-1px); }
+    .button:active { transform:translateY(1px); }
+    .button.secondary { background:#243143; color:var(--text); border:1px solid #34465b; }
+    .arena { min-height:290px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:26px; transition:background .18s; cursor:pointer; user-select:none; }
+    .arena.waiting { background:#571d26; }
+    .arena.go { background:#12663d; }
+    .arena.idle { background:#172332; }
+    .arena .signal { font-size:clamp(25px,6vw,36px); font-weight:900; letter-spacing:-.03em; margin-bottom:10px; }
+    .arena .hint { font-size:14px; color:rgba(255,255,255,.75); }
+    .stats { display:flex; gap:10px; margin:18px 0; }
+    .stat { flex:1; background:#0e151e; border:1px solid #263445; border-radius:14px; padding:14px; }
+    .stat .label { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.1em; margin-bottom:6px; }
+    .stat .value { font-size:23px; font-weight:800; }
+    .progress { height:5px; background:#263344; border-radius:99px; overflow:hidden; margin:0 0 20px; }
+    .progress > div { height:100%; width:0; background:var(--green); transition:width .2s; }
+    .round { font-size:12px; color:var(--muted); text-align:center; margin-bottom:12px; }
+    .result-number { font-size:clamp(48px,12vw,76px); font-weight:900; letter-spacing:-.06em; margin:6px 0 2px; }
+    .result-number span { font-size:18px; color:var(--muted); letter-spacing:0; }
+    .notice { color:#ffd7a3; background:#33281a; border:1px solid #59422a; border-radius:12px; padding:12px; font-size:13px; margin:14px 0; }
+    .footer { text-align:center; color:#68778a; font-size:11px; margin-top:14px; }
+    .hidden { display:none !important; }
+    @media (max-width:420px) { .arena { min-height:250px; } .stats { gap:7px; } .stat { padding:11px; } .stat .value { font-size:19px; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="top"><div class="brand">BOWNCE <span style="color:var(--green)">●</span></div><div class="tag">REACTION TEST</div></div>
+    <section class="card">
+      <!-- Start screen -->
+      <div id="startScreen" class="content">
+        <div class="eyebrow">READY TO TEST YOUR REFLEXES?</div>
+        <h1>Wie schnell<br>reagierst du?</h1>
+        <p>Teste deine Reaktionsgeschwindigkeit in 5 Runden. Warte auf das grüne Signal und tippe so schnell du kannst.</p>
+        <div class="stats"><div class="stat"><div class="label">Runden</div><div class="value">5</div></div><div class="stat"><div class="label">Messung</div><div class="value">ms</div></div></div>
+        <button id="startBtn" class="button">START TEST</button>
+      </div>
+
+      <!-- Game screen -->
+      <div id="gameScreen" class="hidden">
+        <div class="content" style="padding-bottom:16px"><div class="round" id="roundLabel">RUNDE 1 VON 5</div><div class="progress"><div id="progressBar"></div></div></div>
+        <div id="arena" class="arena idle" role="button" tabindex="0"><div class="signal" id="signalText">BEREIT?</div><div class="hint" id="hintText">Tippe hier, um zu starten</div></div>
+        <div class="content" style="padding-top:16px"><div id="message" class="round">Tippe auf die Fläche, wenn das grüne Signal erscheint.</div></div>
+      </div>
+
+
+      <!-- Result screen -->
+      <div id="resultScreen" class="content hidden">
+        <div class="eyebrow">TEST ABGESCHLOSSEN</div>
+        <h1>Dein Ergebnis</h1>
+        <div class="result-number" id="averageResult">— <span>ms</span></div>
+        <p id="resultText">Deine durchschnittliche Reaktionszeit aus 5 Runden.</p>
+        <div class="stats"><div class="stat"><div class="label">Bestzeit</div><div class="value" id="bestResult">— ms</div></div><div class="stat"><div class="label">Runden</div><div class="value">5 / 5</div></div></div>
+        <div id="roundDetails" class="round" style="margin:0 0 18px"></div>
+        <p>Challenge deine Freunde und finde heraus, wer am schnellsten reagiert!</p>
+        <button id="retryBtn" class="button secondary" style="margin-bottom:10px">NOCH EINMAL TESTEN</button>
+        <a id="returnBtn" href="#" style="text-decoration:none"><button class="button">ZURÜCK ZUM CHAT ↗</button></a>
+      </div>
+    </section>
+    <div class="footer">5 RUNDEN · REAGIERE ERST, WENN ES GRÜN WIRD</div>
+  </main>
+<script>
+  // SendPulse Telegram return link with test results
+  const BOT_NAME = 'Test_work_demobot';
+  const RETURN_CHAIN_ID = '6b05e0a7f37491a8780ce00e';
+
+  const startScreen = document.getElementById('startScreen');
+  const gameScreen = document.getElementById('gameScreen');
+  const resultScreen = document.getElementById('resultScreen');
+  const arena = document.getElementById('arena');
+  const signalText = document.getElementById('signalText');
+  const hintText = document.getElementById('hintText');
+  const message = document.getElementById('message');
+  const roundLabel = document.getElementById('roundLabel');
+  const progressBar = document.getElementById('progressBar');
+
+  let round = 0;
+  let times = [];
+  let state = 'idle'; // idle, waiting, go
+  let greenAt = 0;
+  let waitTimer = null;
+
+  document.getElementById('startBtn').addEventListener('click', startTest);
+  document.getElementById('retryBtn').addEventListener('click', startTest);
+  arena.addEventListener('click', handleArenaClick);
+  arena.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleArenaClick(); } });
+
+  function startTest() {
+    clearTimeout(waitTimer);
+    round = 0;
+    times = [];
+    startScreen.classList.add('hidden');
+    resultScreen.classList.add('hidden');
+    gameScreen.classList.remove('hidden');
+    beginRound();
+  }
+
+  function beginRound() {
+    round++;
+    state = 'waiting';
+    roundLabel.textContent = `RUNDE ${round} VON 5`;
+    progressBar.style.width = `${((round - 1) / 5) * 100}%`;
+    arena.className = 'arena waiting';
+    signalText.textContent = 'WARTEN…';
+    hintText.textContent = 'Noch nicht tippen!';
+    message.textContent = 'Tippe erst, wenn die Fläche grün wird.';
+    // Zufällige Wartezeit, damit man den Wechsel nicht vorhersagen kann.
+    const delay = 1600 + Math.random() * 3200;
+    waitTimer = setTimeout(showGreen, delay);
+  }
+
+  function showGreen() {
+    state = 'go';
+    greenAt = performance.now();
+    arena.className = 'arena go';
+    signalText.textContent = 'JETZT!';
+    hintText.textContent = 'SO SCHNELL WIE MÖGLICH TIPPEN';
+    message.textContent = 'GO!';
+  }
+
+  function handleArenaClick() {
+    if (state === 'waiting') {
+      clearTimeout(waitTimer);
+      state = 'idle';
+      arena.className = 'arena idle';
+      signalText.textContent = 'ZU FRÜH!';
+      hintText.textContent = 'Du warst zu schnell — konzentriere dich.';
+      message.textContent = 'Fehlstart! Diese Runde wird wiederholt.';
+      setTimeout(beginRound, 900);
+      return;
+    }
+    if (state === 'go') {
+      const reaction = Math.round(performance.now() - greenAt);
+      times.push(reaction);
+      state = 'idle';
+      arena.className = 'arena idle';
+      signalText.textContent = `${reaction} ms`;
+      hintText.textContent = 'Reaktionszeit';
+      message.textContent = round < 5 ? 'Gut! Bereit für die nächste Runde?' : 'Geschafft! Dein Ergebnis wird berechnet…';
+      progressBar.style.width = `${(round / 5) * 100}%`;
+      setTimeout(() => round < 5 ? beginRound() : showResults(), 950);
+    }
+  }
+
+  function showResults() {
+    gameScreen.classList.add('hidden');
+    resultScreen.classList.remove('hidden');
+    const average = Math.round(times.reduce((sum, n) => sum + n, 0) / times.length);
+    const best = Math.min(...times);
+    document.getElementById('averageResult').innerHTML = `${average} <span>ms</span>`;
+    document.getElementById('bestResult').textContent = `${best} ms`;
+    document.getElementById('roundDetails').textContent = `Deine Runden: ${times.join(' · ')} ms`;
+    const returnUrl = new URL(`https://tg.pulse.is/${BOT_NAME}`);
+    returnUrl.searchParams.set('start', RETURN_CHAIN_ID);
+    returnUrl.searchParams.set('reaction_avg', average);
+    returnUrl.searchParams.set('reaction_best', best);
+    returnUrl.searchParams.set('reaction_rounds', times.join(','));
+    returnUrl.searchParams.set('reaction_count', times.length);
+    document.getElementById('returnBtn').href = returnUrl.toString();
+    let description = 'Solider Test! Jetzt heißt es: weiter üben und deine Freunde herausfordern.';
+    if (average < 220) description = 'Wow — richtig schnell! Challenge deine Freunde und vergleiche eure Zeiten.';
+    else if (average < 300) description = 'Stark! Du hast schnell reagiert. Kannst du dich beim nächsten Versuch noch steigern?';
+    document.getElementById('resultText').textContent = description;
+  }
+</script>
+</body>
+</html>
